@@ -1,0 +1,105 @@
+local function createHitboxGui()
+    local player = game.Players.LocalPlayer
+    local starterGui = game:GetService("StarterGui")
+
+    -- Remove existing GUI to prevent duplicates
+    if player:FindFirstChild("PlayerGui") and player.PlayerGui:FindFirstChild("HitboxGui") then
+        player.PlayerGui.HitboxGui:Destroy()
+    end
+
+    -- Create GUI inside PlayerGui
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "HitboxGui"
+    ScreenGui.Parent = player:WaitForChild("PlayerGui")
+
+    -- Send Notification via StarterGui
+    starterGui:SetCore("SendNotification", {
+        Title = "Give Me You're PEPE",
+        Text = "Created by Vince Vitan",
+        Duration = 3
+    })
+
+    local Frame = Instance.new("Frame")
+    Frame.Parent = ScreenGui
+    Frame.Size = UDim2.new(0, 200, 0, 50)
+    Frame.Position = UDim2.new(0, 10, 1, -60)
+    Frame.AnchorPoint = Vector2.new(0, 1)
+    Frame.BackgroundColor3 = Color3.fromRGB(50, 50, 50)
+    Frame.BorderSizePixel = 0
+    Frame.BackgroundTransparency = 0.2
+    Frame.Active = true
+
+    local TeamButton = Instance.new("TextButton")
+    TeamButton.Parent = Frame
+    TeamButton.Size = UDim2.new(1, -10, 1, -10)
+    TeamButton.Position = UDim2.new(0, 5, 0, 5)
+    TeamButton.BackgroundColor3 = Color3.fromRGB(255, 255, 255)
+    TeamButton.TextColor3 = Color3.fromRGB(0, 0, 0)
+    TeamButton.Text = "Toggle Team Check"
+
+    -- Variables
+    local hitboxSize = 15
+    local teamCheck = false
+    local processedPlayers = {}
+
+    -- Function to apply hitbox expansion
+    local function applyHitbox(targetPlayer)
+        if targetPlayer ~= player and targetPlayer.Character then
+            local rootPart = targetPlayer.Character:FindFirstChild("HumanoidRootPart")
+            if rootPart and (not teamCheck or (teamCheck and targetPlayer.Team ~= player.Team)) then
+                if not processedPlayers[targetPlayer] then
+                    processedPlayers[targetPlayer] = true
+
+                    -- Modify hitbox
+                    rootPart.Size = Vector3.new(hitboxSize, hitboxSize, hitboxSize)
+                    rootPart.Transparency = 0.5
+                    rootPart.CanCollide = false
+                    
+                    -- Add visualizer
+                    if not rootPart:FindFirstChild("HitboxVisualizer") then
+                        local hitboxVisualizer = Instance.new("SelectionBox")
+                        hitboxVisualizer.Name = "HitboxVisualizer"
+                        hitboxVisualizer.Adornee = rootPart
+                        hitboxVisualizer.Parent = rootPart
+                        hitboxVisualizer.Color3 = Color3.fromRGB(255, 255, 255)
+                    end
+                end
+            end
+        end
+    end
+
+    -- Update hitboxes when necessary
+    local function updateHitboxes()
+        for _, targetPlayer in pairs(game.Players:GetPlayers()) do
+            applyHitbox(targetPlayer)
+        end
+    end
+
+    -- Apply hitbox when players join or respawn
+    game.Players.PlayerAdded:Connect(function(targetPlayer)
+        targetPlayer.CharacterAdded:Connect(function()
+            task.wait(1)  -- Slight delay to ensure character loads
+            applyHitbox(targetPlayer)
+        end)
+    end)
+
+    -- Toggle team check
+    TeamButton.MouseButton1Click:Connect(function()
+        teamCheck = not teamCheck
+        TeamButton.Text = teamCheck and "Team Check: ON" or "Team Check: OFF"
+        processedPlayers = {} -- Reset processed players to reapply hitboxes
+        updateHitboxes()
+    end)
+
+    -- Initial application of hitboxes
+    updateHitboxes()
+end
+
+-- Initialize GUI on script load
+createHitboxGui()
+
+-- Recreate GUI when the player's character is added (handles respawns)
+game.Players.LocalPlayer.CharacterAdded:Connect(function()
+    task.wait(1)  -- Ensure character loads before GUI is created
+    createHitboxGui()
+end)

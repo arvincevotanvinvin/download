@@ -1,0 +1,109 @@
+local RunService = game:GetService("RunService")
+local Players = game:GetService("Players")
+local LocalPlayer = Players.LocalPlayer
+local Camera = workspace.CurrentCamera
+local StarterGui = game:GetService("StarterGui")
+local UserInputService = game:GetService("UserInputService")
+
+-- Create the placemarker
+local placemarker = Instance.new("Part", workspace)
+placemarker.Anchored = true
+placemarker.CanCollide = false
+placemarker.Size = Vector3.new(0.1, 0.1, 0.1)
+placemarker.Transparency = 1
+
+-- Function to send a notification
+local function notify(message)
+    StarterGui:SetCore("SendNotification", {
+        Title = "Lock Detector";
+        Text = message .. "\nMade by Vince Vitan";
+        Duration = 2.5;
+    })
+end
+
+-- Function to create a marker UI
+local function makemarker(Parent, Adornee, Color, Size, Size2)
+    local gui = Instance.new("BillboardGui", Parent)
+    gui.Name = "PP"
+    gui.Adornee = Adornee
+    gui.Size = UDim2.new(Size, Size2, Size, Size2)
+    gui.AlwaysOnTop = true
+
+    local frame = Instance.new("Frame", gui)
+    frame.Size = UDim2.new(1, 0, 1, 0)
+    frame.BackgroundTransparency = 0.4
+    frame.BackgroundColor3 = Color
+
+    local corner = Instance.new("UICorner", frame)
+    corner.CornerRadius = UDim.new(30, 30)
+
+    return gui
+end
+
+makemarker(placemarker, placemarker, Color3.fromRGB(255, 255, 255), 1, 0)
+
+-- Function to find the closest player to the cursor
+local function getClosestPlayerToCursor()
+    local closestPlayer = nil
+    local shortestDistance = math.huge
+    local MouseLocation = UserInputService:GetMouseLocation()
+
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= LocalPlayer and player.Character and player.Character:FindFirstChild("Humanoid") and player.Character.Humanoid.Health > 0 then
+            local head = player.Character:FindFirstChild("Head")
+            if head then
+                local screenPos, onScreen = Camera:WorldToViewportPoint(head.Position)
+                if onScreen then
+                    local distance = (Vector2.new(screenPos.X, screenPos.Y) - MouseLocation).Magnitude
+                    if distance < shortestDistance then
+                        closestPlayer = player
+                        shortestDistance = distance
+                    end
+                end
+            end
+        end
+    end
+    return closestPlayer
+end
+
+-- Variables
+local TargetPlayer = nil
+local enabled = false
+
+-- Toggle detection with "Q" key
+UserInputService.InputBegan:Connect(function(input, gameProcessed)
+    if not gameProcessed and input.KeyCode == Enum.KeyCode.Q then
+        enabled = not enabled
+        if enabled then
+            TargetPlayer = getClosestPlayerToCursor()
+            if TargetPlayer then
+                placemarker.Transparency = 0
+                notify("Lock Detector Enabled")
+            else
+                enabled = false
+                notify("No target found")
+            end
+        else
+            placemarker.Transparency = 1
+            notify("Lock Detector Disabled")
+        end
+    end
+end)
+
+-- Update placemarker position
+RunService.Heartbeat:Connect(function()
+    if enabled and TargetPlayer and TargetPlayer.Character then
+        local bodyEffects = TargetPlayer.Character:FindFirstChild("BodyEffects")
+        if bodyEffects and bodyEffects:FindFirstChild("MousePos") then
+            local targetPos = bodyEffects.MousePos.Value
+            -- Smooth movement to reduce jitter
+            placemarker.CFrame = placemarker.CFrame:Lerp(CFrame.new(targetPos), 0.2)
+        else
+            if enabled then
+                enabled = false
+                placemarker.Transparency = 1
+                notify("Target lost")
+            end
+        end
+    end
+end)
